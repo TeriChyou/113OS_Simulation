@@ -24,3 +24,6 @@ DISK_LATENCY = 5  # ms
 NETWORK_BANDWIDTH = 100  # Mbps
 NETWORK_LATENCY = 20  # ms
 
+## Process status
+STATUS = ["new", "ready", "running", "waiting", "terminated"]
+

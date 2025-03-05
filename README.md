@@ -1,9 +1,10 @@
 # 2025 02 26
+
 Initialized the project
 
-## Plan:
+## Plan
 
-### Core Framework & UI:
+### Core Framework & UI
 
 - UI => 1024 * 768 => Desktop, TaskBar, Windows(Including Apps, Terminal, Resource Monitor)
 
@@ -15,7 +16,7 @@ Initialized the project
   - Event-driven model => Handling Inputs, Processes, Resource Allocation
   - Simulate system calls => **API for processes to request OS services.**
 
-### OS Core Components:
+### OS Core Components
 
 - Process Manager:
   - New -> Ready -> Running -> Terminated
@@ -57,7 +58,7 @@ Initialized the project
   - Simple programs: Text Editor, Calculator, Notepad, Paint, maybe IDE (lol)
   - Simulated OS-level apps: System monitor, File Explorer, Terminal.
 
-### The VM's info:
+### The VM's info
 
 - Hardware
   - Memory
@@ -81,7 +82,13 @@ Initialized the project
   - NETWORK_BANDWIDTH = 100  # Mbps
   - NETWORK_LATENCY = 20  # ms
 
-## Processes today:
+## Processes today
+
 Made a GUI and taskmanager, but is's not a good start.
 So deleted it and made some basic hardware stuffs, then try to simulate CPU, RAM, Writing, Reading, Downloading stuffs.
 Still a lot of researches and concepts to learn.
+
+# 2025 03 05
+
+Made => exam => midterm => 3 files for 3 questions.
+
