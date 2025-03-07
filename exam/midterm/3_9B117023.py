@@ -60,45 +60,65 @@ class Scheduler:
         self.display_gantt_chart("RR (q=3)")
         self.display_avg_waiting_time("RR (q=3)")
 
-    def run_spn(self):
+    def run_sjf(self):
         self.reset()
-        queue = sorted(self.processes, key=lambda p: (p.arrival_time, p.burst_time))
-        while queue:
-            process = queue.pop(0)
-            if self.time_counter < process.arrival_time:
-                self.time_counter = process.arrival_time
-            process.waiting_time = self.time_counter - process.arrival_time
-            process.turnaround_time = process.waiting_time + process.burst_time
-            process.completion_time = self.time_counter + process.burst_time
-            self.schedule.append((process.pid, self.time_counter, process.completion_time))
-            self.time_counter += process.burst_time
-        self.display_gantt_chart("SPN")
-        self.display_avg_waiting_time("SPN")
+        remaining_processes = sorted(self.processes, key=lambda p: p.burst_time)  # Sort by arrival time, then burst time
+        self.ready_queue = []
+        
+        while remaining_processes or self.ready_queue:
+            # If no process is available, move the time forward
+            if not self.ready_queue:
+                self.time_counter = remaining_processes[0].arrival_time
+            
+            # Move arrived processes to ready queue
+            while remaining_processes and remaining_processes[0].arrival_time <= self.time_counter:
+                self.ready_queue.append(remaining_processes.pop(0))
+            
+            # Sort ready queue based on burst time (Shortest Job First)
+            self.ready_queue.sort(key=lambda p: p.burst_time)
+            
+            if self.ready_queue:
+                process = self.ready_queue.pop(0)
+                process.waiting_time = self.time_counter - process.arrival_time
+                process.turnaround_time = process.waiting_time + process.burst_time
+                process.completion_time = self.time_counter + process.burst_time
+                self.schedule.append((process.pid, self.time_counter, process.completion_time))
+                self.time_counter += process.burst_time
+
+        self.display_gantt_chart("SJF")
+        self.display_avg_waiting_time("SJF")
+
 
     def run_srt(self):
         self.reset()
-        queue = []
+        completed = 0
         remaining_processes = self.processes[:]
-        while queue or remaining_processes:
+
+        while completed < len(self.processes):
+            # 將已到達的行程加入 ready_queue
             while remaining_processes and remaining_processes[0].arrival_time <= self.time_counter:
-                queue.append(remaining_processes.pop(0))
-                queue.sort(key=lambda p: p.remaining_time)
-            if queue:
-                process = queue.pop(0)
-                execution_time = 1
-                self.schedule.append((process.pid, self.time_counter, self.time_counter + execution_time))
-                self.time_counter += execution_time
-                process.remaining_time -= execution_time
-                if process.remaining_time > 0:
-                    queue.append(process)
-                else:
+                self.ready_queue.append(remaining_processes.pop(0))
+            
+            # 選擇剩餘時間最短的行程執行
+            if self.ready_queue:
+                self.ready_queue.sort(key=lambda p: p.remaining_time)
+                process = self.ready_queue[0]  # 選擇當前剩餘時間最短的行程
+                process.remaining_time -= 1
+                self.schedule.append((process.pid, self.time_counter, self.time_counter + 1))
+                self.time_counter += 1
+                
+                # 若行程執行完畢
+                if process.remaining_time == 0:
                     process.completion_time = self.time_counter
                     process.turnaround_time = process.completion_time - process.arrival_time
                     process.waiting_time = process.turnaround_time - process.burst_time
+                    self.ready_queue.pop(0)  # 從 ready_queue 移除已完成的行程
+                    completed += 1
             else:
-                self.time_counter += 1
-        self.display_gantt_chart("SRT")
-        self.display_avg_waiting_time("SRT")
+                self.time_counter += 1  # 若無行程可執行，時間前進
+        
+        self.display_gantt_chart("SRTF")
+        self.display_avg_waiting_time("SRTF")
 
     def reset(self):
         self.time_counter = 0
@@ -137,5 +157,5 @@ processes = [
 scheduler = Scheduler(processes)
 scheduler.run_fcfs()
 scheduler.run_rr(quantum=3)
-scheduler.run_spn()
+scheduler.run_sjf()
 scheduler.run_srt()
