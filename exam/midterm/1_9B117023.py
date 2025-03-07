@@ -1,7 +1,5 @@
 import matplotlib.pyplot as plt
-from collections import deque
 import random
-import time
 
 # 定義 Process 類別，代表一個行程
 class Process:

@@ -1,7 +1,6 @@
 import matplotlib.pyplot as plt
 from collections import deque
 import random
-import time
 
 # 定義 Process 類別
 class Process:
@@ -29,65 +28,117 @@ class Scheduler:
 
     def run_fcfs(self):
         self.reset()
+        
+        # Ensure processes are sorted by arrival time before execution
+        self.processes.sort(key=lambda p: p.arrival_time)
+
         for process in self.processes:
+            # If CPU is idle, jump to the next process arrival time
             if self.time_counter < process.arrival_time:
                 self.time_counter = process.arrival_time
+
+            # Calculate process metrics
             process.waiting_time = self.time_counter - process.arrival_time
             process.turnaround_time = process.waiting_time + process.burst_time
             process.completion_time = self.time_counter + process.burst_time
-            self.schedule.append((process.pid, self.time_counter, process.completion_time))
-            self.time_counter += process.burst_time
-        self.display_gantt_chart("FCFS")
-        self.display_avg_waiting_time("FCFS")
 
+            # Log scheduling data
+            self.schedule.append((process.pid, self.time_counter, process.completion_time))
+
+            # Advance time counter
+            self.time_counter += process.burst_time
+
+        self.display_avg_waiting_time("FCFS")
+        self.display_gantt_chart("FCFS")
+        
     def run_rr(self, quantum=3):
         self.reset()
-        queue = deque(self.processes)
-        while queue:
-            process = queue.popleft()
-            if self.time_counter < process.arrival_time:
-                self.time_counter = process.arrival_time
-            execution_time = min(quantum, process.remaining_time)
-            self.schedule.append((process.pid, self.time_counter, self.time_counter + execution_time))
-            self.time_counter += execution_time
-            process.remaining_time -= execution_time
-            if process.remaining_time > 0:
-                queue.append(process)
-            else:
-                process.completion_time = self.time_counter
-                process.turnaround_time = process.completion_time - process.arrival_time
-                process.waiting_time = process.turnaround_time - process.burst_time
-        self.display_gantt_chart("RR (q=3)")
-        self.display_avg_waiting_time("RR (q=3)")
+        
+        # Ensure processes are sorted by arrival time initially
+        self.processes.sort(key=lambda p: p.arrival_time)
+        
+        queue = deque()
+        index = 0  # To track the next arriving process
+        n = len(self.processes)
+        completed = 0
 
+        while completed < n:
+            # Add newly arrived processes to queue
+            while index < n and self.processes[index].arrival_time <= self.time_counter:
+                queue.append(self.processes[index])
+                index += 1
+
+            if queue:
+                process = queue.popleft()
+                execution_time = min(quantum, process.remaining_time)
+
+                # Schedule process execution
+                self.schedule.append((process.pid, self.time_counter, self.time_counter + execution_time))
+                self.time_counter += execution_time
+                process.remaining_time -= execution_time
+
+                # Add newly arrived processes after execution
+                while index < n and self.processes[index].arrival_time <= self.time_counter:
+                    queue.append(self.processes[index])
+                    index += 1
+
+                # If process is not finished, put it back in the queue
+                if process.remaining_time > 0:
+                    queue.append(process)
+                else:
+                    process.completion_time = self.time_counter
+                    process.turnaround_time = process.completion_time - process.arrival_time
+                    process.waiting_time = process.turnaround_time - process.burst_time
+                    completed += 1
+            else:
+                # If no process is ready, jump to the next process's arrival time
+                self.time_counter = self.processes[index].arrival_time
+
+        self.display_avg_waiting_time(f"RR (q={quantum})")
+        self.display_gantt_chart(f"RR (q={quantum})")
+        
     def run_sjf(self):
         self.reset()
-        remaining_processes = sorted(self.processes, key=lambda p: p.burst_time)  # Sort by arrival time, then burst time
+
+        # Ensure processes are sorted by arrival time first
+        self.processes.sort(key=lambda p: (p.arrival_time, p.burst_time))
+        remaining_processes = self.processes[:]
         self.ready_queue = []
-        
+        total_waiting_time = 0
+        total_turnaround_time = 0
+        n = len(self.processes)
+
         while remaining_processes or self.ready_queue:
-            # If no process is available, move the time forward
-            if not self.ready_queue:
-                self.time_counter = remaining_processes[0].arrival_time
-            
-            # Move arrived processes to ready queue
+            # Move all processes that have arrived into the ready queue
             while remaining_processes and remaining_processes[0].arrival_time <= self.time_counter:
                 self.ready_queue.append(remaining_processes.pop(0))
-            
-            # Sort ready queue based on burst time (Shortest Job First)
+
+            # Sort the ready queue by burst time (Shortest Job First)
             self.ready_queue.sort(key=lambda p: p.burst_time)
-            
+
             if self.ready_queue:
+                # Pick the shortest job available
                 process = self.ready_queue.pop(0)
                 process.waiting_time = self.time_counter - process.arrival_time
                 process.turnaround_time = process.waiting_time + process.burst_time
                 process.completion_time = self.time_counter + process.burst_time
+
+                # Accumulate waiting time and turnaround time for averaging
+                total_waiting_time += process.waiting_time
+                total_turnaround_time += process.turnaround_time
+
+                # Schedule process execution
                 self.schedule.append((process.pid, self.time_counter, process.completion_time))
                 self.time_counter += process.burst_time
+            else:
+                # If no process is available, jump to the next arrival time
+                self.time_counter = remaining_processes[0].arrival_time
 
+        # Calculate and display average waiting time
+        avg_waiting_time = total_waiting_time / n
+        
+        print(f"SJF - Average Waiting Time: {avg_waiting_time:.2f}")
         self.display_gantt_chart("SJF")
-        self.display_avg_waiting_time("SJF")
-
 
     def run_srt(self):
         self.reset()
@@ -116,10 +167,10 @@ class Scheduler:
                     completed += 1
             else:
                 self.time_counter += 1  # 若無行程可執行，時間前進
-        
-        self.display_gantt_chart("SRTF")
-        self.display_avg_waiting_time("SRTF")
 
+        self.display_avg_waiting_time("SRTF")
+        self.display_gantt_chart("SRTF")
+        
     def reset(self):
         self.time_counter = 0
         self.schedule = []
@@ -141,8 +192,10 @@ class Scheduler:
         plt.show()
 
     def display_avg_waiting_time(self, title):
+        self.processes.sort(key=lambda p: p.pid)  # Ensure ordering before computing
         avg_waiting_time = sum(p.waiting_time for p in self.processes) / len(self.processes)
         print(f"{title} - Average Waiting Time: {avg_waiting_time:.2f}")
+
 
 # 測試行程資料
 processes = [
@@ -159,3 +212,5 @@ scheduler.run_fcfs()
 scheduler.run_rr(quantum=3)
 scheduler.run_sjf()
 scheduler.run_srt()
+
+leave = input("Press Enter to leave...")
