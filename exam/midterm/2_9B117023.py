@@ -40,6 +40,9 @@ class Scheduler:
             
             if self.ready_queue:
                 process = self.ready_queue.pop(0)
+                self.update_gantt_chart(ax, self.schedule, process)
+                self.display_pcb(process)
+                plt.pause(1)
                 process.state = "Running"
                 process.program_counter = random.randint(1000, 5000)
                 process.waiting_time = self.time_counter - process.arrival_time
@@ -48,11 +51,15 @@ class Scheduler:
                 # 如果是 D 或 G，則執行一部分後中斷
                 if process.pid in self.interrupted_processes and process.pid not in self.suspended_processes:
                     interrupt_time = 2  # 模擬 2 單位時間的執行後中斷
+                    self.display_pcb(process)
+                    self.update_gantt_chart(ax, self.schedule, process)
+                    plt.pause(1)
                     print(f"Process {process.pid} is INTERRUPTED (Printing a file)... Moving to Suspended state.")
                     process.state = "Suspended"
                     self.schedule.append((process.pid, self.time_counter, self.time_counter + interrupt_time, 'red'))
                     self.display_pcb(process)
-                    plt.pause(1)
+                    self.update_gantt_chart(ax, self.schedule, process)
+                    plt.pause(2)
                     process.remaining_time -= interrupt_time
                     self.time_counter += interrupt_time
                     process.state = "Ready"
@@ -66,6 +73,7 @@ class Scheduler:
                     plt.pause(1)
                     self.time_counter += process.remaining_time
                     process.state = "Terminated"
+                    self.update_gantt_chart(ax, self.schedule, process)
                     self.display_pcb(process)
             else:
                 self.time_counter += 1
@@ -81,7 +89,7 @@ class Scheduler:
         
         ax.set_xlabel("Time")
         ax.set_ylabel("Processes")
-        ax.set_title(f"Gantt Chart - SJF Execution (Current: {current_process.pid})")
+        ax.set_title(f"Gantt Chart - SJF Execution (Current: {current_process.pid} : {current_process.state})")
         plt.draw()
 
     def display_pcb(self, process):
