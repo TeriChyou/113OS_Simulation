@@ -94,5 +94,5 @@ Made => exam => midterm => 3 files for 3 questions.
 
 # 2025 03 11
 
-Modified exam_1 & 2, and then make the suspend and pause able to be viewed on the gannt chart.
+Modified exam_1 & 2, and then make the suspend and pause able to be viewed on the gannt chart. 
 
