@@ -1,6 +1,4 @@
-# 2025 02 26
-
-Initialized the project
+# OS simulation
 
 ## Plan
 
@@ -82,17 +80,28 @@ Initialized the project
   - NETWORK_BANDWIDTH = 100  # Mbps
   - NETWORK_LATENCY = 20  # ms
 
-## Processes today
+## 2025 02 26
 
-Made a GUI and taskmanager, but is's not a good start.
-So deleted it and made some basic hardware stuffs, then try to simulate CPU, RAM, Writing, Reading, Downloading stuffs.
-Still a lot of researches and concepts to learn.
+Initialized the project
 
-# 2025 03 05
+Processes today:
+
+1. Made a GUI and taskmanager, but is's not a good start.
+2. So deleted it and made some basic hardware stuffs, then try to simulate CPU, RAM, Writing, Reading, Downloading stuffs.
+3. Still a lot of researches and concepts to learn.
+
+## 2025 03 05
 
 Made => exam => midterm => 3 files for 3 questions.
 
-# 2025 03 11
+## 2025 03 11
 
-Modified exam_1 & 2, and then make the suspend and pause able to be viewed on the gannt chart. 
+Modified exam_1 & 2, and then make the suspend and pause able to be viewed on the gannt chart.
 
+## 2025 03 12
+
+Optimized the program running flow, can use one console to decide which method to use.
+
+- NOTICE: PLEASE use `pyinstaller --onefile --console midterm.py` then you can run a one-console exe with this simulation.
+  - If there's no pyinstaller in python lib, please run `python -m pip install pyinstaller`.
+  
