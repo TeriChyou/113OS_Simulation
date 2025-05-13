@@ -1,0 +1,115 @@
+@* Views/FinalTerm/SleepingTA.cshtml *@
+@{
+    ViewData["Title"] = "睡覺的助教 (Sleeping TA)";
+}
+
+@* ... 上面的 HTML 保持不變 ... *@
+
+<hr>
+
+<div id="simulationStatus">
+    <h2>模擬狀態</h2>
+    <p>點擊 "開始模擬" 按鈕來啟動。</p>
+    <input type="number" id="numberOfStudents" placeholder="學生數量" min="1" />
+    <input type="number" id="numberOfChairs" placeholder="椅子數量" min="0" />
+    <p>請輸入學生數量 (至少 1) 和椅子數量 (至少 0)。</p>
+    <button id="startSimulationBtn" class="btn btn-primary">開始模擬</button>
+    @* 這裡將用於顯示模擬的即時狀態 *@
+    <div id="taStatus">TA 狀態: 未啟動</div>
+    <div id="chairsStatus">走廊椅子: 未啟動</div>
+    <div id="waitingQueueStatus">等待隊列: 未啟動</div>
+    <h3>學生狀態</h3>
+    <ul id="studentsList">
+        @* 這裡會動態生成學生狀態列表 *@
+    </ul>
+</div>
+
+@section Scripts {
+    <script>
+        let simulationInterval; // 用於儲存定時器的 ID
+
+        function updateSimulationStatus() {
+            $.ajax({
+                url: '@Url.Action("GetSleepingTASimulationStatus", "FinalTerm")', // 指向獲取狀態的 Action
+                type: 'GET',
+                success: function(status) {
+                    // 成功獲取狀態後，更新頁面顯示
+                    $('#taStatus').text('TA 狀態: ' + getTAStateText(status.taState));
+                    $('#chairsStatus').text('走廊椅子: ' + (status.availableChairs) + ' 可用');
+                    $('#waitingQueueStatus').text('等待隊列人數: ' + status.waitingQueueCount);
+
+                    const studentsList = $('#studentsList');
+                    studentsList.empty(); // 清空之前的學生列表
+
+                    // 遍歷學生狀態並添加到列表中
+                    status.students.forEach(student => {
+                        studentsList.append(`<li>學生 ${student.id}: ${getStudentStateText(student.state)}</li>`);
+                    });
+
+                    // 你可以在這裡根據狀態改變元素的樣式或位置來做更進階的視覺化
+                    // 例如： if (status.taState === 0) { $('#taStatus').css('color', 'gray'); } // 0 對應 Sleeping
+                },
+                error: function(error) {
+                    console.error("獲取模擬狀態時發生錯誤", error);
+                    // 如果發生錯誤，可以停止更新或顯示錯誤訊息
+                    // clearInterval(simulationInterval);
+                }
+            });
+        }
+
+        // 輔助函數，將狀態數字轉換為文字 (對應 C# 的枚舉順序)
+        function getTAStateText(state) {
+            switch(state) {
+                case 0: return '睡覺中';
+                case 1: return '正在幫助學生';
+                case 2: return '檢查隊列';
+                default: return '未知';
+            }
+        }
+
+         // 輔助函數，將狀態數字轉換為文字 (對應 C# 的枚舉順序)
+        function getStudentStateText(state) {
+            switch(state) {
+                case 0: return '思考中';
+                case 1: return '尋求幫助';
+                case 2: return '等待中 (椅子上)';
+                case 3: return '正在被幫助';
+                case 4: return '離開';
+                default: return '未知';
+            }
+        }
+
+
+        $(document).ready(function() {
+            $('#startSimulationBtn').click(function() {
+                const students = $('#numberOfStudents').val();
+                const chairs = $('#numberOfChairs').val();
+
+                if (students > 0 && chairs >= 0) {
+                    // 停止任何現有的狀態更新定時器
+                    if (simulationInterval) {
+                        clearInterval(simulationInterval);
+                    }
+
+                    $.ajax({
+                        url: '@Url.Action("StartSleepingTASimulation", "FinalTerm")',
+                        type: 'POST',
+                        data: { numberOfStudents: students, numberOfChairs: chairs },
+                        success: function(response) {
+                            console.log("模擬啟動請求已收到", response);
+                             $('#simulationStatus').html('<h2>模擬狀態</h2><p>模擬正在進行...</p>');
+                             // 啟動定時器，定期更新狀態 (例如每 500 毫秒)
+                             simulationInterval = setInterval(updateSimulationStatus, 500); // 每 500 毫秒更新一次
+                        },
+                        error: function(error) {
+                            console.error("啟動模擬時發生錯誤", error);
+                            $('#simulationStatus').html('<h2>模擬狀態</h2><p style="color: red;">啟動模擬失敗！</p>');
+                        }
+                    });
+                } else {
+                    alert('請輸入有效的學生數量 (至少 1) 和椅子數量 (至少 0)。');
+                }
+            });
+        });
+    </script>
+}

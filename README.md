@@ -104,4 +104,7 @@ Optimized the program running flow, can use one console to decide which method t
 
 - NOTICE: PLEASE use `pyinstaller --onefile --console midterm.py` then you can run a one-console exe with this simulation.
   - If there's no pyinstaller in python lib, please run `python -m pip install pyinstaller`.
-  
+
+## 2025 05 13
+
+- Added MVC project for final term.
