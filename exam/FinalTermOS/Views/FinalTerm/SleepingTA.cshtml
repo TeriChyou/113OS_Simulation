@@ -3,18 +3,33 @@
     ViewData["Title"] = "睡覺的助教 (Sleeping TA)";
 }
 
-@* ... 上面的 HTML 保持不變 ... *@
+<h1>@ViewData["Title"]</h1>
+
+<div class="simulation-controls">
+    <div class="form-group">
+        <label for="numberOfStudents">學生總數:</label>
+        <input type="number" id="numberOfStudents" name="numberOfStudents" class="form-control" value="10" min="1">
+    </div>
+    <div class="form-group">
+        <label for="numberOfChairs">走廊椅子數量:</label>
+        <input type="number" id="numberOfChairs" name="numberOfChairs" class="form-control" value="5" min="0">
+    </div>
+     <p id="simulationMessage">點擊 "開始模擬" 按鈕來啟動。</p>
+    <button id="startSimulationBtn" class="btn btn-primary">開始模擬</button>
+    <button id="stopSimulationBtn" class="btn btn-danger" disabled>停止模擬</button> {{-- Add stop button, initially disabled --}}
+
+     {{-- Add a checkbox for student loop control --}}
+     <div class="form-group form-check">
+        <input type="checkbox" class="form-check-input" id="studentLoopToggle" checked>
+        <label class="form-check-label" for="studentLoopToggle">學生服務完後繼續循環</label>
+     </div>
+
+</div>
 
 <hr>
 
-<div id="simulationStatus">
+<div id="simulationStatusDisplay">
     <h2>模擬狀態</h2>
-    <p>點擊 "開始模擬" 按鈕來啟動。</p>
-    <input type="number" id="numberOfStudents" placeholder="學生數量" min="1" />
-    <input type="number" id="numberOfChairs" placeholder="椅子數量" min="0" />
-    <p>請輸入學生數量 (至少 1) 和椅子數量 (至少 0)。</p>
-    <button id="startSimulationBtn" class="btn btn-primary">開始模擬</button>
-    @* 這裡將用於顯示模擬的即時狀態 *@
     <div id="taStatus">TA 狀態: 未啟動</div>
     <div id="chairsStatus">走廊椅子: 未啟動</div>
     <div id="waitingQueueStatus">等待隊列: 未啟動</div>
@@ -26,37 +41,62 @@
 
 @section Scripts {
     <script>
-        let simulationInterval; // 用於儲存定時器的 ID
+        let simulationInterval;
 
         function updateSimulationStatus() {
             $.ajax({
-                url: '@Url.Action("GetSleepingTASimulationStatus", "FinalTerm")', // 指向獲取狀態的 Action
+                url: '@Url.Action("GetSleepingTASimulationStatus", "FinalTerm")',
                 type: 'GET',
                 success: function(status) {
-                    // 成功獲取狀態後，更新頁面顯示
+                    console.log("Received status data:", status);
+
+                    // Check if simulation is reported as not running
+                    if (status.isRunning === false) {
+                        clearInterval(simulationInterval); // Stop the interval
+                        $('#simulationMessage').text(status.message || '模擬已停止。'); // Update message
+                        $('#startSimulationBtn').prop('disabled', false); // Enable start button
+                        $('#stopSimulationBtn').prop('disabled', true);  // Disable stop button
+                         // Optionally clear the status display
+                         $('#taStatus').text('TA 狀態: 未啟動');
+                         $('#chairsStatus').text('走廊椅子: 未啟動');
+                         $('#waitingQueueStatus').text('等待隊列: 未啟動');
+                         $('#studentsList').empty();
+                         return; // Stop further updates
+                    }
+
+
                     $('#taStatus').text('TA 狀態: ' + getTAStateText(status.taState));
                     $('#chairsStatus').text('走廊椅子: ' + (status.availableChairs) + ' 可用');
                     $('#waitingQueueStatus').text('等待隊列人數: ' + status.waitingQueueCount);
 
                     const studentsList = $('#studentsList');
-                    studentsList.empty(); // 清空之前的學生列表
+                    studentsList.empty();
 
-                    // 遍歷學生狀態並添加到列表中
-                    status.students.forEach(student => {
-                        studentsList.append(`<li>學生 ${student.id}: ${getStudentStateText(student.state)}</li>`);
-                    });
+                    if (status.students && Array.isArray(status.students)) {
+                        status.students.forEach(student => {
+                            console.log("Processing student:", student); // Log the entire student object
+                            console.log("Student ID:", student.id);     // Verify id access
+                            console.log("Student State (raw):", student.state); // Verify state access before function call
+                            console.log("Student State (text):", getStudentStateText(student.state)); // Verify function call result
 
-                    // 你可以在這裡根據狀態改變元素的樣式或位置來做更進階的視覺化
-                    // 例如： if (status.taState === 0) { $('#taStatus').css('color', 'gray'); } // 0 對應 Sleeping
+                            studentsList.append(`<li>學生 ${student.id}: ${getStudentStateText(student.state)}</li>`);
+                        });
+                    } else {
+                        console.warn("Received status.students is not a valid array:", status.students);
+                    }
                 },
                 error: function(error) {
                     console.error("獲取模擬狀態時發生錯誤", error);
-                    // 如果發生錯誤，可以停止更新或顯示錯誤訊息
-                    // clearInterval(simulationInterval);
+                    // Stop the interval on error
+                    clearInterval(simulationInterval);
+                    $('#simulationMessage').text('獲取狀態失敗，模擬可能已停止或出錯。');
+                    $('#startSimulationBtn').prop('disabled', false);
+                    $('#stopSimulationBtn').prop('disabled', true);
                 }
             });
         }
 
+        // Helper functions remain the same...
         // 輔助函數，將狀態數字轉換為文字 (對應 C# 的枚舉順序)
         function getTAStateText(state) {
             switch(state) {
@@ -79,37 +119,82 @@
             }
         }
 
-
         $(document).ready(function() {
+            // Start Button Click Handler
             $('#startSimulationBtn').click(function() {
                 const students = $('#numberOfStudents').val();
                 const chairs = $('#numberOfChairs').val();
+                // Get the state of the student loop toggle
+                const loopStudents = $('#studentLoopToggle').is(':checked');
+
 
                 if (students > 0 && chairs >= 0) {
-                    // 停止任何現有的狀態更新定時器
                     if (simulationInterval) {
                         clearInterval(simulationInterval);
                     }
 
+                    // Disable start button, enable stop button
+                    $('#startSimulationBtn').prop('disabled', true);
+                    $('#stopSimulationBtn').prop('disabled', false);
+
                     $.ajax({
                         url: '@Url.Action("StartSleepingTASimulation", "FinalTerm")',
                         type: 'POST',
-                        data: { numberOfStudents: students, numberOfChairs: chairs },
+                         // Pass the loopStudents setting to the backend
+                        data: { numberOfStudents: students, numberOfChairs: chairs, loopStudents: loopStudents },
                         success: function(response) {
                             console.log("模擬啟動請求已收到", response);
-                             $('#simulationStatus').html('<h2>模擬狀態</h2><p>模擬正在進行...</p>');
-                             // 啟動定時器，定期更新狀態 (例如每 500 毫秒)
-                             simulationInterval = setInterval(updateSimulationStatus, 500); // 每 500 毫秒更新一次
+                             $('#simulationMessage').text(response.message || '模擬正在進行...');
+                             // Start the periodic status update
+                             simulationInterval = setInterval(updateSimulationStatus, 500);
                         },
                         error: function(error) {
                             console.error("啟動模擬時發生錯誤", error);
-                            $('#simulationStatus').html('<h2>模擬狀態</h2><p style="color: red;">啟動模擬失敗！</p>');
+                             $('#simulationMessage').text('啟動模擬失敗！');
+                             $('#startSimulationBtn').prop('disabled', false); // Enable start button on error
+                             $('#stopSimulationBtn').prop('disabled', true);
                         }
                     });
                 } else {
                     alert('請輸入有效的學生數量 (至少 1) 和椅子數量 (至少 0)。');
                 }
             });
+
+            // Stop Button Click Handler
+            $('#stopSimulationBtn').click(function() {
+                 // Disable stop button immediately
+                 $('#stopSimulationBtn').prop('disabled', true);
+                 $('#simulationMessage').text('正在發送停止請求...');
+
+                 $.ajax({
+                    url: '@Url.Action("StopSleepingTASimulation", "FinalTerm")',
+                    type: 'POST',
+                    success: function(response) {
+                        console.log("模擬停止請求已收到", response);
+                        // The interval will be stopped when GetSleepingTASimulationStatus reports not running
+                        // $('#simulationMessage').text(response.message || '模擬停止中...');
+                        // clearInterval(simulationInterval); // Optional: Stop interval here too, but relies on backend reporting stop
+                    },
+                     error: function(error) {
+                         console.error("發送停止請求時發生錯誤", error);
+                         $('#simulationMessage').text('發送停止請求失敗！');
+                         $('#stopSimulationBtn').prop('disabled', false); // Re-enable stop on error
+                     }
+                 });
+            });
+
+            // === Handle Page Leave/Refresh ===
+            // This is tricky. Singleton service means threads persist.
+            // Best approach for this project is to explicitly stop before leaving, or accept they keep running.
+            // You could add a confirmation dialog, but it doesn't stop the backend threads.
+            // window.addEventListener('beforeunload', function (e) {
+            //     if ($('#stopSimulationBtn').prop('disabled') === false) { // If stop button is enabled, simulation is running
+            //         e.preventDefault(); // Cancel the event
+            //         e.returnValue = ''; // Chrome requires returnValue to be set
+            //         alert('模擬正在運行中。離開頁面不會停止後台模擬。請先點擊「停止模擬」。');
+            //     }
+            // });
+
         });
     </script>
 }

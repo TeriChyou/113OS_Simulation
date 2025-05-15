@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("FinalTermOS")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+95f4dbe69e08aeba05bd9c6584be0a6574f67455")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+1cf54ea1a0fb297739622a7c6a71bbd9ce50d027")]
 [assembly: System.Reflection.AssemblyProductAttribute("FinalTermOS")]
 [assembly: System.Reflection.AssemblyTitleAttribute("FinalTermOS")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

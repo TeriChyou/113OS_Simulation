@@ -22,28 +22,52 @@ public class FinalTermController : Controller
 
     // 處理啟動模擬 POST 請求的 Action
     [HttpPost]
-    public IActionResult StartSleepingTASimulation(int numberOfStudents, int numberOfChairs)
+    public IActionResult StartSleepingTASimulation(int numberOfStudents, int numberOfChairs, bool loopStudents)
     {
-        if (numberOfStudents > 0 && numberOfChairs >= 0)
+        if (!_sleepingTAService.IsSimulationRunning && numberOfStudents > 0 && numberOfChairs >= 0)
         {
-            // 呼叫 Service 來啟動模擬
-            _sleepingTAService.StartSimulation(numberOfStudents, numberOfChairs);
-            // 返回成功訊息
+            _sleepingTAService.StartSimulation(numberOfStudents, numberOfChairs, loopStudents); // Pass parameter
             return Json(new { success = true, message = "模擬已啟動。" });
+        }
+        else if (_sleepingTAService.IsSimulationRunning)
+        {
+             return Json(new { success = false, message = "模擬已在運行中。" });
         }
         else
         {
             return Json(new { success = false, message = "請輸入有效的參數。" });
         }
     }
-
+    // stop action
+    [HttpPost] // Use POST for actions that change state
+    public IActionResult StopSleepingTASimulation()
+    {
+        if (_sleepingTAService.IsSimulationRunning)
+        {
+            _sleepingTAService.StopSimulation();
+            return Json(new { success = true, message = "模擬停止請求已收到。" });
+        }
+        else
+        {
+            return Json(new { success = false, message = "模擬未在運行中。" });
+        }
+    }
     // 新增 Action 來獲取模擬的當前狀態
     [HttpGet]
+        [HttpGet]
     public IActionResult GetSleepingTASimulationStatus()
     {
-        // 從 Service 獲取當前狀態
-        SleepingTASimulationStatus status = _sleepingTAService.GetCurrentStatus();
-        // 將狀態作為 JSON 回傳給前端
-        return Json(status);
+        // It's good practice to check if the simulation is running before getting status
+        if (_sleepingTAService.IsSimulationRunning)
+        {
+            SleepingTASimulationStatus status = _sleepingTAService.GetCurrentStatus();
+            return Json(status);
+        }
+        else
+        {
+             // Return a status indicating simulation is not running
+             return Json(new { taState = (int)TAState.Sleeping, students = new List<StudentStatusDto>(), waitingQueueCount = 0, availableChairs = 0, isRunning = false, message = "模擬未運行" });
+        }
+
     }
 }
