@@ -16,10 +16,9 @@
     </div>
      <p id="simulationMessage">點擊 "開始模擬" 按鈕來啟動。</p>
     <button id="startSimulationBtn" class="btn btn-primary">開始模擬</button>
-    <button id="stopSimulationBtn" class="btn btn-danger" disabled>停止模擬</button> {{-- Add stop button, initially disabled --}}
+    <button id="stopSimulationBtn" class="btn btn-danger" disabled>停止模擬</button> 
 
-     {{-- Add a checkbox for student loop control --}}
-     <div class="form-group form-check">
+    <div class="form-group form-check">
         <input type="checkbox" class="form-check-input" id="studentLoopToggle" checked>
         <label class="form-check-label" for="studentLoopToggle">學生服務完後繼續循環</label>
      </div>
@@ -115,6 +114,7 @@
                 case 2: return '等待中 (椅子上)';
                 case 3: return '正在被幫助';
                 case 4: return '離開';
+                case 5: return '被幫助，已離開';
                 default: return '未知';
             }
         }
@@ -183,17 +183,13 @@
                  });
             });
 
-            // === Handle Page Leave/Refresh ===
-            // This is tricky. Singleton service means threads persist.
-            // Best approach for this project is to explicitly stop before leaving, or accept they keep running.
-            // You could add a confirmation dialog, but it doesn't stop the backend threads.
-            // window.addEventListener('beforeunload', function (e) {
-            //     if ($('#stopSimulationBtn').prop('disabled') === false) { // If stop button is enabled, simulation is running
-            //         e.preventDefault(); // Cancel the event
-            //         e.returnValue = ''; // Chrome requires returnValue to be set
-            //         alert('模擬正在運行中。離開頁面不會停止後台模擬。請先點擊「停止模擬」。');
-            //     }
-            // });
+            window.addEventListener('beforeunload', function (e) {
+                    if ($('#stopSimulationBtn').prop('disabled') === false) { // If stop button is enabled, simulation is running
+                    e.preventDefault(); // Cancel the event
+                    e.returnValue = ''; // Chrome requires returnValue to be set
+                    alert('模擬正在運行中。離開頁面不會停止後台模擬。請先點擊「停止模擬」。');
+                }
+             });
 
         });
     </script>

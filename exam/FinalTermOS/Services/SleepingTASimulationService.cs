@@ -216,7 +216,7 @@ namespace FinalTermOS.Services
 
             // === Control student looping ===
             // Use a flag to control if the student loops after being served once
-            bool loopAfterServed = true; // This will be controlled by the switch
+            // bool loopAfterServed = true; // This will be controlled by the switch
 
             // Outer loop runs until cancellation is requested OR student decides to stop looping
             // while (!cancellationToken.IsCancellationRequested && (loopAfterServed || student.ServiceCount == 0)) // More complex condition if tracking count
@@ -303,10 +303,10 @@ namespace FinalTermOS.Services
                          // Student's state was set to Leaving by TA logic.
                          // Now, simulate the student leaving and doing something else for a while.
                          Console.WriteLine($"學生 {student.Id}: 完成服務，離開辦公室。");
-                         lock (_lock) { student.State = StudentState.Thinking; } // Set state back to thinking
+                         lock (_lock) { student.State = StudentState.Thinking; } // Set state back to thinking 離開就不循環了
 
                          // === Check the loop switch after being served ===
-                         if (!loopAfterServed)
+                         if (!_loopStudentsAfterServed)
                          {
                              keepLooping = false; // Stop looping after this cycle
                              Console.WriteLine($"學生 {student.Id}: 完成一次服務，依設定不再循環。");
@@ -317,12 +317,6 @@ namespace FinalTermOS.Services
                               try { Task.Delay(new Random().Next(2000, 5000), cancellationToken).Wait(); } // Delay before next cycle
                               catch (TaskCanceledException) { Console.WriteLine($"學生 {student.Id}: 循環間隔中被取消。"); keepLooping = false; }
                          }
-
-                        if (_loopStudentsAfterServed) // Check the service-level flag
-                        {
-                            try { Task.Delay(new Random().Next(2000, 5000), cancellationToken).Wait(); }
-                            catch (TaskCanceledException) { break; } // Exit loop on cancellation
-                        }
                     }
                     catch (TaskCanceledException)
                     {
@@ -331,16 +325,6 @@ namespace FinalTermOS.Services
                         // Need to remove student from queue if they are still there.
                         lock(_lock)
                         {
-                             // This is tricky: student might have just been dequeued by TA.
-                             // A robust solution would involve coordination on removal.
-                             // For simplicity now, we assume if Wait is cancelled, they didn't get served.
-                             // Need to ensure chair is released if acquired but not served.
-                             // The chair is released by TA when dequeuing. If cancelled while waiting,
-                             // they are still in queue or just dequeued. This needs careful handling.
-                             // Let's assume for now if cancelled while waiting for signal, they leave the queue.
-                             // Removing from queue requires finding and removing, Queue<T> doesn't support easy removal.
-                             // A List or a concurrent collection might be better for the queue if cancellation mid-wait is common.
-                             // For this example, let's just exit and accept potential small inconsistencies on cancellation mid-wait.
                              student.State = StudentState.Leaving; // Set state to leaving due to cancellation
                         }
                         keepLooping = false; // Stop looping on cancellation
@@ -383,7 +367,7 @@ namespace FinalTermOS.Services
              lock(_lock) // Optional: Update student state to truly finished
              {
                  // Maybe add a StudentState.Finished enum value
-                 // student.State = StudentState.Finished;
+                student.State = StudentState.Finished;
              }
         }
     }

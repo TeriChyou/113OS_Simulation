@@ -14,6 +14,7 @@ namespace FinalTermOS.Models
         SeekingHelp,    // 學生決定尋求 TA 幫助，正前往辦公室
         WaitingInChair, // 學生坐在走廊的椅子上等待
         GettingHelp,    // 學生正在被 TA 幫助
-        Leaving         // 學生離開辦公室（無論是得到幫助還是椅子滿了）
+        Leaving,         // 學生離開辦公室（無論是還是椅子滿了
+        Finished // 學生得到幫助
     }
 }
