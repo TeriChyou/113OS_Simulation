@@ -12,6 +12,7 @@ builder.Services.AddControllersWithViews();
 // 由於 SleepingTASimulationService 負責管理模擬的狀態（執行緒、號誌等），
 // 應該讓整個應用程式共用同一個實例，所以註冊為 Singleton。
 builder.Services.AddSingleton<SleepingTASimulationService>();
+builder.Services.AddSingleton<DiningPhilosophersSimulationService>();
 // =================================
 
 var app = builder.Build();

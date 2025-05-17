@@ -1,6 +1,7 @@
 // Models/SimulationStateEnums.cs
 namespace FinalTermOS.Models
 {
+    // SleepingTA
     public enum TAState
     {
         Sleeping,
@@ -16,5 +17,13 @@ namespace FinalTermOS.Models
         GettingHelp,    // 學生正在被 TA 幫助
         Leaving,         // 學生離開辦公室（無論是還是椅子滿了
         Finished // 學生得到幫助
+    }
+    // Dining Philosophers
+    public enum PhilosopherState
+    {
+        Thinking,       // Philosopher is thinking
+        Hungry,         // Philosopher wants to eat
+        WaitingForForks,// Philosopher has one fork and is waiting for the second
+        Eating          // Philosopher is eating
     }
 }

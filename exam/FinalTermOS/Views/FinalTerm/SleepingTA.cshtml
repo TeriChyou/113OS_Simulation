@@ -30,12 +30,14 @@
 <div id="simulationStatusDisplay">
     <h2>模擬狀態</h2>
     <div id="taStatus">TA 狀態: 未啟動</div>
-    <div id="chairsStatus">走廊椅子: 未啟動</div>
+    <div id="chairsContainer" style="display: flex; gap: 10px; margin-bottom: 20px;">
+    @* Chairs will be dynamically added here by JS *@
+    </div>
     <div id="waitingQueueStatus">等待隊列: 未啟動</div>
     <h3>學生狀態</h3>
-    <ul id="studentsList">
-        @* 這裡會動態生成學生狀態列表 *@
-    </ul>
+    <div id="studentsContainer" style="display: flex; flex-wrap: wrap; gap: 10px;">
+        @* Student blocks will be dynamically added here *@
+    </div>
 </div>
 
 @section Scripts {
@@ -56,13 +58,43 @@
                         $('#startSimulationBtn').prop('disabled', false); // Enable start button
                         $('#stopSimulationBtn').prop('disabled', true);  // Disable stop button
                          // Optionally clear the status display
-                         $('#taStatus').text('TA 狀態: 未啟動');
-                         $('#chairsStatus').text('走廊椅子: 未啟動');
-                         $('#waitingQueueStatus').text('等待隊列: 未啟動');
-                         $('#studentsList').empty();
-                         return; // Stop further updates
+                        $('#taStatus').text('TA 狀態: 未啟動');
+                        $('#chairsStatus').text('走廊椅子: 未啟動');
+                        $('#waitingQueueStatus').text('等待隊列: 未啟動');
+                        $('#studentsList').empty();
+                        $('#chairsContainer').empty();
+                        $('#studentsContainer').empty();
+                        $('#studentLoopToggle').prop('disabled', false); // Enable student loop toggle for next run
+                        $('#numberOfStudents').prop('disabled', false); // Enable inputs
+                        $('#numberOfChairs').prop('disabled', false); // Enable inputs
+                        return; // Stop further updates
                     }
+                    // if running
+                    $('#numberOfStudents').prop('disabled', true);
+                    $('#numberOfChairs').prop('disabled', true);
+                    $('#studentLoopToggle').prop('disabled', true);
 
+                    // TA & student status 20250517
+                    const taStatusElement = $('#taStatus');
+                    taStatusElement.text('TA 狀態: ' + getTAStateText(status.taState));
+                    taStatusElement.removeClass('ta-sleeping ta-helping ta-checking')
+                    .addClass('ta-' + getTAStateText(status.taState).toLowerCase().replace(/[^a-z0-9]/g, ''));
+                    // Modified getTAStateText (JavaScript helper)
+                    function getTAStateClass(state) { // New function name for clarity
+                        switch(state) {
+                            case 0: return 'ta-sleeping';
+                            case 1: return 'ta-helping';
+                            case 2: return 'ta-checking';
+                            default: return '';
+                        }
+                    }
+                    // Update TA status call:
+                    taStatusElement.removeClass('ta-sleeping ta-helping ta-checking')
+                                .addClass(getTAStateClass(status.taState));
+                    taStatusElement.text('TA 狀態: ' + getTAStateText(status.taState)); // Still use getTAStateText for text
+
+
+                    
 
                     $('#taStatus').text('TA 狀態: ' + getTAStateText(status.taState));
                     $('#chairsStatus').text('走廊椅子: ' + (status.availableChairs) + ' 可用');
@@ -79,10 +111,44 @@
                             console.log("Student State (text):", getStudentStateText(student.state)); // Verify function call result
 
                             studentsList.append(`<li>學生 ${student.id}: ${getStudentStateText(student.state)}</li>`);
+                            const listItem = $(`<li>學生 ${student.id}: ${getStudentStateText(student.state)}</li>`);
+                    // Add class based on student state
                         });
                     } else {
                         console.warn("Received status.students is not a valid array:", status.students);
                     }
+                    // chair
+                    const totalChairs = parseInt($('#numberOfChairs').val()); // Get total chairs from input
+                    const availableChairs = status.availableChairs;
+                    const occupiedChairs = totalChairs - availableChairs;
+
+                    const chairsContainer = $('#chairsContainer');
+                    chairsContainer.empty(); // Clear previous chairs
+
+                    for (let i = 0; i < totalChairs; i++) {
+                        const chairDiv = $(`<div class="chair"></div>`);
+                        if (i < occupiedChairs) {
+                            chairDiv.addClass('chair-occupied').text('佔用');
+                        } else {
+                            chairDiv.addClass('chair-empty').text('空位');
+                        }
+                        chairsContainer.append(chairDiv);
+                    }
+                    // student 
+                    const studentsContainer = $('#studentsContainer');
+                    studentsContainer.empty();
+
+                    if (status.students && Array.isArray(status.students)) {
+                        status.students.forEach(student => {
+                            const studentBlock = $(`<div class="student-block">
+                                                        <div>學生 <span class="math-inline">${student.id}</div>
+                            <div class="student-state-text">${getStudentStateText(student.state)}</div>
+                            </div>`);
+                            studentBlock.addClass(getStudentStateClass(student.state)); // Apply class for color
+                            studentsContainer.append(studentBlock);
+                        });
+                    }
+
                 },
                 error: function(error) {
                     console.error("獲取模擬狀態時發生錯誤", error);
@@ -116,6 +182,18 @@
                 case 4: return '離開';
                 case 5: return '被幫助，已離開';
                 default: return '未知';
+            }
+        }
+        // class name for student
+        function getStudentStateClass(state) { 
+            switch(state) {
+                case 0: return 'student-thinking';
+                case 1: return 'student-seeking';
+                case 2: return 'student-waiting';
+                case 3: return 'student-getting-help';
+                case 4: return 'student-leaving';
+                case 5: return 'student-finished'; // If you add a finished state (enum 5)
+                default: return '';
             }
         }
 
@@ -194,3 +272,73 @@
         });
     </script>
 }
+<style>
+    /* Style for TA status */
+    #taStatus {
+        padding: 10px;
+        margin-bottom: 10px;
+        border-radius: 5px;
+        font-weight: bold;
+        transition: background-color 0.5s ease; /* Smooth color transition */
+    }
+    .ta-sleeping { background-color: #e0e0e0; color: #555; } /* Grey */
+    .ta-helping { background-color: #d4edda; color: #155724; } /* Light Green */
+    .ta-checking { background-color: #ffeeba; color: #856404; } /* Light Yellow */
+
+    /* Style for student list items */
+    #studentsList li {
+        padding: 5px 10px;
+        margin-bottom: 5px;
+        border-radius: 3px;
+        transition: background-color 0.5s ease;
+    }
+    .student-thinking { background-color: #f8f9fa; } /* Light grey */
+    .student-seeking { background-color: #ffe0b3; } /* Light orange */
+    .student-waiting { background-color: #e6e6fa; } /* Lavender */
+    .student-getting-help { background-color: #cce5ff; } /* Light blue */
+    .student-leaving { background-color: #f0f0f0; } /* Lighter grey */
+    .student-finished { background-color: #6c757d; color: white; } /* Dark grey */
+
+    .chair {
+        width: 50px;
+        height: 50px;
+        border: 2px solid #333;
+        border-radius: 5px;
+        background-color: #f0f0f0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: bold;
+        transition: background-color 0.5s ease;
+    }
+    .chair-occupied {
+        background-color: #b0e0e6; /* Light blue for occupied */
+        color: #333;
+    }
+    .chair-empty {
+        background-color: #f0f0f0; /* Light grey for empty */
+        color: #888;
+    }
+    .student-block {
+        width: 80px;
+        height: 80px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+            font-size: 14px;
+        transition: background-color 0.5s ease, border-color 0.5s ease;
+    }
+    .student-thinking { background-color: #f8f9fa; }
+    .student-seeking { background-color: #ffe0b3; }
+    .student-waiting { background-color: #e6e6fa; }
+    .student-getting-help { background-color: #cce5ff; }
+    .student-leaving { background-color: #f0f0f0; }
+    .student-finished { background-color: #6c757d; color: white; }
+</style>
+
+   

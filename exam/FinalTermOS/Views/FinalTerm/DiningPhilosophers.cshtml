@@ -1,5 +1,309 @@
+@* Views/FinalTerm/DiningPhilosophers.cshtml *@
 @{
-    ViewData["Title"] = "DiningPhilosophers";
+    ViewData["Title"] = "哲學家進餐問題 (Dining Philosophers)";
 }
-<h2>DiningPhilosophers</h2>
-<p>這裡是第二題的模擬畫面。</p>
+
+<h1>@ViewData["Title"]</h1>
+
+<div class="simulation-controls">
+    <div class="form-group">
+        <label for="numberOfPhilosophers">哲學家數量:</label>
+        <input type="number" id="numberOfPhilosophers" name="numberOfPhilosophers" class="form-control" value="5" min="2" max="9"> @* Problem states 9, but allow flexibility *@
+    </div>
+    <p id="simulationMessage">點擊 "開始模擬" 按鈕來啟動。</p>
+    <button id="startSimulationBtn" class="btn btn-primary">開始模擬</button>
+    <button id="stopSimulationBtn" class="btn btn-danger" disabled>停止模擬</button>
+    <button id="pauseResumeSimulationBtn" class="btn btn-warning" disabled>暫停模擬</button> 
+</div>
+
+<hr>
+
+<div id="simulationStatusDisplay">
+    <h2>模擬狀態</h2>
+    <div id="forksContainer" style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+        @* Forks will be dynamically added here *@
+    </div>
+    <h3>哲學家狀態</h3>
+    <div id="philosophersContainer" style="display: flex; flex-wrap: wrap; gap: 15px;">
+        @* Philosopher blocks will be dynamically added here *@
+    </div>
+    <h3>模擬日誌</h3>
+    <div id="simulationLog" style="height: 200px; overflow-y: scroll; border: 1px solid #ddd; padding: 10px; background-color: #f0f0f0; font-family: monospace; font-size: 12px;">
+        @* Log messages will appear here *@
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        let simulationInterval;
+
+        // Helper functions for state text (will be defined below)
+        function getPhilosopherStateText(state) {
+            switch(state) {
+                case 0: return '思考中'; // Thinking
+                case 1: return '飢餓中'; // Hungry
+                case 2: return '正在吃飯'; // Eating
+                case 3: return '等待筷子'; // WaitingForForks (or simply Waiting)
+                default: return '未知';
+            }
+        }
+
+        function getPhilosopherStateClass(state) {
+            switch(state) {
+                case 0: return 'philosopher-thinking';
+                case 1: return 'philosopher-hungry';
+                case 2: return 'philosopher-eating';
+                case 3: return 'philosopher-waiting';
+                default: return '';
+            }
+        }
+
+        function getForkStateText(isAvailable) {
+            return isAvailable ? '可用' : '已佔用';
+        }
+
+        function getForkStateClass(isAvailable) {
+            return isAvailable ? 'fork-available' : 'fork-occupied';
+        }
+
+        function updateSimulationStatus() {
+            $.ajax({
+                url: '@Url.Action("GetDiningPhilosophersSimulationStatus", "FinalTerm")',
+                type: 'GET',
+                success: function(status) {
+                    console.log("Received status data:", status);
+
+                    // Check if simulation is reported as not running
+                    if (status.isRunning === false) {
+                        clearInterval(simulationInterval);
+                        $('#simulationMessage').text(status.message || '模擬已停止。');
+                        $('#startSimulationBtn').prop('disabled', false);
+                        $('#stopSimulationBtn').prop('disabled', true);
+                        $('#numberOfPhilosophers').prop('disabled', false);
+
+                        // Reset UI elements
+                        $('#forksContainer').empty();
+                        $('#philosophersContainer').empty();
+                        return;
+                    }
+                    // Handle simulation paused state
+                    if (status.isPaused === true) {
+                        $('#simulationMessage').text(status.message || '模擬已暫停。');
+                        $('#pauseResumeSimulationBtn').prop('disabled', false).text('恢復模擬'); // Change text to Resume
+                        $('#stopSimulationBtn').prop('disabled', false); // Allow stopping while paused
+                    } else {
+                        // Simulation is running and not paused
+                        $('#simulationMessage').text(status.message || '模擬正在進行...');
+                        $('#pauseResumeSimulationBtn').prop('disabled', false).text('暫停模擬'); // Change text to Pause
+                        $('#stopSimulationBtn').prop('disabled', false);
+                    }
+                    const simulationLog = $('#simulationLog');
+                    simulationLog.empty(); // Clear previous logs for each update
+                    if (status.logMessages && Array.isArray(status.logMessages)) {
+                        status.logMessages.forEach(msg => {
+                            simulationLog.append(`<div>${msg}</div>`);
+                        });
+                        // Auto-scroll to the bottom
+                        simulationLog.scrollTop(simulationLog[0].scrollHeight);
+                    }
+                    // Disable input when simulation starts
+                    $('#numberOfPhilosophers').prop('disabled', true);
+
+                    // Update Forks visualization
+                    const forksContainer = $('#forksContainer');
+                    forksContainer.empty();
+                    if (status.forks && Array.isArray(status.forks)) {
+                        status.forks.forEach((fork, index) => {
+                            const forkDiv = $(`<div class="fork-block ${getForkStateClass(fork.isAvailable)}">
+                                                    筷子 ${index}
+                                                    <div class="fork-state-text">${getForkStateText(fork.isAvailable)}</div>
+                                                </div>`);
+                            forksContainer.append(forkDiv);
+                        });
+                    }
+
+                    // Update Philosophers visualization
+                    const philosophersContainer = $('#philosophersContainer');
+                    philosophersContainer.empty();
+                    if (status.philosophers && Array.isArray(status.philosophers)) {
+                        status.philosophers.forEach(philosopher => {
+                            const philosopherBlock = $(`<div class="philosopher-block ${getPhilosopherStateClass(philosopher.state)}">
+                                                            <div>哲學家 ${philosopher.id}</div>
+                                                            <div class="philosopher-state-text">${getPhilosopherStateText(philosopher.state)}</div>
+                                                        </div>`);
+                            philosophersContainer.append(philosopherBlock);
+                        });
+                    }
+                },
+                error: function(error) {
+                    console.error("獲取模擬狀態時發生錯誤", error);
+                    clearInterval(simulationInterval);
+                    $('#simulationMessage').text('獲取狀態失敗，模擬可能已停止或出錯。');
+                    $('#startSimulationBtn').prop('disabled', false);
+                    $('#stopSimulationBtn').prop('disabled', true);
+                }
+            });
+        }
+
+        $(document).ready(function() {
+            // Start Button Click Handler
+            $('#startSimulationBtn').click(function() {
+                const philosophers = $('#numberOfPhilosophers').val();
+
+                if (philosophers >= 2) { // Need at least 2 philosophers for the problem to make sense
+                    if (simulationInterval) {
+                        clearInterval(simulationInterval);
+                    }
+
+                    $('#startSimulationBtn').prop('disabled', true);
+                    $('#stopSimulationBtn').prop('disabled', false);
+                    $('#numberOfPhilosophers').prop('disabled', true);
+                    $('#pauseResumeSimulationBtn').prop('disabled', false).text('暫停模擬'); // Enable and set text to Pause
+
+                    $.ajax({
+                        url: '@Url.Action("StartDiningPhilosophersSimulation", "FinalTerm")',
+                        type: 'POST',
+                        data: { numberOfPhilosophers: philosophers },
+                        success: function(response) {
+                            console.log("模擬啟動請求已收到", response);
+                            $('#simulationMessage').text(response.message || '模擬正在進行...');
+                            $('#simulationLog').empty();
+                            simulationInterval = setInterval(updateSimulationStatus, 500);
+                        },
+                        error: function(error) {
+                            console.error("啟動模擬時發生錯誤", error);
+                            $('#simulationMessage').text('啟動模擬失敗！');
+                            $('#startSimulationBtn').prop('disabled', false);
+                            $('#stopSimulationBtn').prop('disabled', true);
+                            $('#numberOfPhilosophers').prop('disabled', false);
+                        }
+                    });
+                } else {
+                    alert('請輸入有效的哲學家數量 (至少 2)。');
+                }
+            });
+
+            // Stop Button Click Handler
+            $('#stopSimulationBtn').click(function() {
+                $('#stopSimulationBtn').prop('disabled', true);
+                $('#simulationMessage').text('正在發送停止請求...');
+                $('#pauseResumeSimulationBtn').prop('disabled', true).text('暫停模擬');
+
+                $.ajax({
+                    url: '@Url.Action("StopDiningPhilosophersSimulation", "FinalTerm")',
+                    type: 'POST',
+                    success: function(response) {
+                        console.log("模擬停止請求已收到", response);
+                        // UI will reset once GetDiningPhilosophersSimulationStatus reports isRunning: false
+                    },
+                    error: function(error) {
+                        console.error("發送停止請求時發生錯誤", error);
+                        $('#simulationMessage').text('發送停止請求失敗！');
+                        $('#stopSimulationBtn').prop('disabled', false);
+                    }
+                });
+            });
+
+            $('#pauseResumeSimulationBtn').click(function() {
+                const isPaused = $(this).text() === '恢復模擬'; // Check current text to determine action
+                const urlAction = isPaused ? "ResumeDiningPhilosophersSimulation" : "PauseDiningPhilosophersSimulation";
+                const buttonElement = $(this);
+
+                buttonElement.prop('disabled', true); // Disable button immediately to prevent double clicks
+
+                $.ajax({
+                    url: '/FinalTerm/' + urlAction,
+                    type: 'POST',
+                    success: function(response) {
+                        console.log("Pause/Resume request sent:", response);
+                        // UI will be updated by the periodic updateSimulationStatus call
+                    },
+                    error: function(error) {
+                        console.error("Pause/Resume request failed:", error);
+                        $('#simulationMessage').text('暫停/恢復請求失敗！');
+                        buttonElement.prop('disabled', false); // Re-enable on error
+                    }
+                });
+            });
+        });
+    </script>
+}
+<style>
+    /* Styles for Dining Philosophers Problem */
+
+    /* General containers */
+    #forksContainer, #philosophersContainer {
+        border: 1px solid #ddd;
+        padding: 15px;
+        border-radius: 8px;
+        background-color: #f9f9f9;
+    }
+
+    /* Fork Block */
+    .fork-block {
+        width: 80px;
+        height: 80px;
+        border: 1px solid #ccc;
+        border-radius: 50%; /* Make it circular */
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        font-weight: bold;
+        transition: background-color 0.5s ease;
+        box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+    }
+    .fork-available {
+        background-color: #d4edda; /* Light green */
+        color: #155724;
+    }
+    .fork-occupied {
+        background-color: #ffc107; /* Amber/Orange */
+        color: #343a40;
+    }
+    .fork-state-text {
+        font-size: 10px;
+        font-weight: normal;
+        margin-top: 5px;
+    }
+
+    /* Philosopher Block */
+    .philosopher-block {
+        width: 120px;
+        height: 120px;
+        border: 2px solid #333;
+        border-radius: 8px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        font-size: 16px;
+        font-weight: bold;
+        transition: background-color 0.5s ease, border-color 0.5s ease;
+        box-shadow: 3px 3px 8px rgba(0,0,0,0.2);
+    }
+    .philosopher-state-text {
+        font-size: 12px;
+        font-weight: normal;
+        margin-top: 5px;
+    }
+    .philosopher-thinking {
+        background-color: #e0e0e0; /* Light gray */
+        color: #555;
+    }
+    .philosopher-hungry {
+        background-color: #ffeeba; /* Light yellow */
+        color: #856404;
+    }
+    .philosopher-eating {
+        background-color: #cce5ff; /* Light blue */
+        color: #004085;
+        border-color: #007bff; /* Brighter border */
+    }
+    .philosopher-waiting {
+        background-color: #f8d7da; /* Light red/pink */
+        color: #721c24;
+    }
+</style>
