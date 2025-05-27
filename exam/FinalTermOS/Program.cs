@@ -13,6 +13,8 @@ builder.Services.AddControllersWithViews();
 // 應該讓整個應用程式共用同一個實例，所以註冊為 Singleton。
 builder.Services.AddSingleton<SleepingTASimulationService>();
 builder.Services.AddSingleton<DiningPhilosophersSimulationService>();
+builder.Services.AddSingleton<BankersAlgorithmService>(); 
+builder.Services.AddSingleton<VirtualMemorySimulationService>();
 // =================================
 
 var app = builder.Build();

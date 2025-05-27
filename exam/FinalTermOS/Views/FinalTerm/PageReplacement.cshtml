@@ -1,5 +1,310 @@
+@* Views/FinalTerm/PageReplacement.cshtml *@
 @{
-    ViewData["Title"] = "PageReplacement";
+    ViewData["Title"] = "虛擬記憶體頁面置換演算法 (Page Replacement)";
 }
-<h2>PageReplacement</h2>
-<p>這裡是第四題的模擬畫面。</p>
+
+<h1>@ViewData["Title"]</h1>
+
+<div class="simulation-controls">
+    <div class="form-group">
+        <label for="referenceStringLength">參考串長度:</label>
+        <input type="number" id="referenceStringLength" class="form-control" value="20" min="10" max="100">
+    </div>
+    <div class="form-group">
+        <label for="maxPageNumber">最大頁碼 (0-N):</label>
+        <input type="number" id="maxPageNumber" class="form-control" value="9" min="0" max="99">
+    </div>
+    <div class="form-group">
+        <label for="minFrameCount">最小頁框數:</label>
+        <input type="number" id="minFrameCount" class="form-control" value="1" min="1" max="7">
+    </div>
+    <div class="form-group">
+        <label for="maxFrameCount">最大頁框數:</label>
+        <input type="number" id="maxFrameCount" class="form-control" value="7" min="1" max="7">
+    </div>
+    <p id="simulationMessage">點擊 "執行模擬" 來生成參考串並計算結果。</p>
+    <button id="startSimulationBtn" class="btn btn-primary">執行模擬</button>
+</div>
+
+<hr>
+
+<div id="algorithmOutputDisplay">
+    <h2>參考串</h2>
+    <div id="pageReferenceStringDisplay" style="padding: 10px; border: 1px dashed #ccc; margin-bottom: 20px; word-wrap: break-word;">
+        點擊 "執行模擬" 後生成。
+    </div>
+
+    <h2>分頁錯誤總結</h2>
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>演算法</th>
+                <th>頁框數 (1)</th>
+                <th>頁框數 (2)</th>
+                <th>頁框數 (3)</th>
+                <th>頁框數 (4)</th>
+                <th>頁框數 (5)</th>
+                <th>頁框數 (6)</th>
+                <th>頁框數 (7)</th>
+            </tr>
+        </thead>
+        <tbody id="summaryTableBody">
+            @* Summary results will be dynamically loaded here *@
+        </tbody>
+    </table>
+
+    <hr>
+
+    <h2>詳細執行日誌 (逐步播放)</h2>
+    <div class="form-group row">
+        <label for="selectAlgorithm" class="col-sm-2 col-form-label">選擇演算法:</label>
+        <div class="col-sm-4">
+            <select id="selectAlgorithm" class="form-control">
+                <option value="FIFO">FIFO</option>
+                <option value="LRU">LRU</option>
+                <option value="Optimal">Optimal</option>
+            </select>
+        </div>
+        <label for="selectFrameCount" class="col-sm-2 col-form-label">選擇頁框數:</label>
+        <div class="col-sm-4">
+            <select id="selectFrameCount" class="form-control">
+                @for (int i = 1; i <= 7; i++)
+                {
+                    <option value="@i">@i</option>
+                }
+            </select>
+        </div>
+    </div>
+    <button id="loadTraceBtn" class="btn btn-info">載入日誌</button>
+
+    <div id="detailedLogDisplay" style="height: 400px; overflow-y: scroll; border: 1px solid #ddd; padding: 10px; background-color: #f0f0f0; font-family: monospace; font-size: 12px; margin-top: 20px;">
+        @* Detailed trace will be displayed here *@
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        let statusUpdateInterval; // For overall status
+        let currentDetailedTrace = []; // Store the detailed log for playback
+        let currentTraceIndex = 0; // Current step in playback
+        let playbackInterval; // For automatic playback
+        let isPlaybackPaused = false; // Flag for playback pause
+
+        // Function to fetch and display the overall simulation status
+        function getOverallSimulationStatus() {
+            $.ajax({
+                url: '@Url.Action("GetPageReplacementStatus", "FinalTerm")',
+                type: 'GET',
+                success: function(status) {
+                    console.log("Overall status loaded:", status);
+                    updateOverallUI(status);
+                },
+                error: function(error) {
+                    console.error("Failed to load overall status:", error);
+                    $('#simulationMessage').text('載入狀態失敗！');
+                }
+            });
+        }
+
+        // Function to update the overall UI (reference string, summary table, high-level logs)
+        function updateOverallUI(status) {
+            // Update message
+            $('#simulationMessage').text(status.message);
+
+            // Update reference string display
+            $('#pageReferenceStringDisplay').text(status.pageReferenceString.length > 0 ? status.pageReferenceString.join(', ') : '點擊 "執行模擬" 後生成。');
+
+            // Update summary table
+            const summaryTableBody = $('#summaryTableBody');
+            summaryTableBody.empty();
+
+            if (status.results && Array.isArray(status.results) && status.results.length > 0) {
+                const algorithms = ["FIFO", "LRU", "Optimal"];
+                algorithms.forEach(algoName => {
+                    let row = `<tr><td>${algoName}</td>`;
+                    for (let frames = 1; frames <= 7; frames++) {
+                        const result = status.results.find(r => r.algorithmName === algoName && r.pageFrameCount === frames);
+                        row += `<td>${result ? result.pageFaults : 'N/A'}</td>`;
+                    }
+                    row += `</tr>`;
+                    summaryTableBody.append(row);
+                });
+            } else {
+                summaryTableBody.append('<tr><td colspan="8">點擊 "執行模擬" 後顯示結果。</td></tr>');
+            }
+
+            // Update high-level logs
+            const highLevelLogDisplay = $('#algorithmLog'); // Assuming you want high-level log here
+            highLevelLogDisplay.empty();
+            if (status.logMessages && Array.isArray(status.logMessages)) {
+                status.logMessages.forEach(msg => {
+                    highLevelLogDisplay.append(`<div>${msg}</div>`);
+                });
+                highLevelLogDisplay.scrollTop(highLevelLogDisplay[0].scrollHeight);
+            }
+
+            // Manage buttons based on IsRunning
+            if (status.isRunning) {
+                $('#startSimulationBtn').prop('disabled', true);
+                $('#referenceStringLength, #maxPageNumber, #minFrameCount, #maxFrameCount').prop('disabled', true);
+            } else {
+                $('#startSimulationBtn').prop('disabled', false);
+                $('#referenceStringLength, #maxPageNumber, #minFrameCount, #maxFrameCount').prop('disabled', false);
+            }
+        }
+
+        // Function to load and display detailed trace
+        function loadDetailedTrace(algorithmName, frameCount) {
+            clearInterval(playbackInterval); // Clear any existing playback
+            isPlaybackPaused = false;
+
+            $.ajax({
+                url: '@Url.Action("GetPageReplacementDetailedTrace", "FinalTerm")',
+                type: 'GET',
+                data: { algorithmName: algorithmName, frameCount: frameCount },
+                success: function(response) {
+                    currentDetailedTrace = response.trace;
+                    currentTraceIndex = 0;
+                    $('#detailedLogDisplay').empty(); // Clear previous detailed log
+
+                    if (currentDetailedTrace.length > 0) {
+                        // Start automatic playback (you can add pause/next buttons later)
+                        playbackInterval = setInterval(playNextTraceStep, 500); // Play each step every 500ms
+                    } else {
+                        $('#detailedLogDisplay').append('<div>選定演算法無詳細日誌。</div>');
+                    }
+                },
+                error: function(error) {
+                    console.error("Failed to load detailed trace:", error);
+                    $('#detailedLogDisplay').text('載入詳細日誌失敗！');
+                }
+            });
+        }
+
+        // Function to play the next step of the detailed trace
+        function playNextTraceStep() {
+            if (currentTraceIndex < currentDetailedTrace.length) {
+                $('#detailedLogDisplay').append(`<div>${currentDetailedTrace[currentTraceIndex]}</div>`);
+                $('#detailedLogDisplay').scrollTop($('#detailedLogDisplay')[0].scrollHeight);
+                currentTraceIndex++;
+            } else {
+                clearInterval(playbackInterval); // End of trace
+                $('#detailedLogDisplay').append('<div>--- 播放結束 ---</div>');
+            }
+        }
+
+        $(document).ready(function() {
+            // Initial load of status when page is ready
+            getOverallSimulationStatus();
+            statusUpdateInterval = setInterval(getOverallSimulationStatus, 1000); // Periodically update overall status
+
+            // Start Simulation Button Click Handler
+            $('#startSimulationBtn').click(function() {
+                const length = parseInt($('#referenceStringLength').val());
+                const maxPage = parseInt($('#maxPageNumber').val());
+                const minFrames = parseInt($('#minFrameCount').val());
+                const maxFrames = parseInt($('#maxFrameCount').val());
+
+                if (isNaN(length) || isNaN(maxPage) || isNaN(minFrames) || isNaN(maxFrames) ||
+                    length <= 0 || maxPage < 0 || minFrames <= 0 || maxFrames < minFrames) {
+                    alert('請輸入有效的參數。');
+                    return;
+                }
+
+                // Disable inputs and button during simulation
+                $('#startSimulationBtn').prop('disabled', true);
+                $('#referenceStringLength, #maxPageNumber, #minFrameCount, #maxFrameCount').prop('disabled', true);
+                $('#simulationMessage').text('正在執行演算法計算...');
+                $('#pageReferenceStringDisplay').text('生成中...');
+                $('#summaryTableBody').empty().append('<tr><td colspan="8">計算中...</td></tr>');
+                $('#detailedLogDisplay').empty(); // Clear detailed log on new simulation
+                $('#algorithmLog').empty(); // Clear high-level log on new simulation
+
+                $.ajax({
+                    url: '@Url.Action("StartPageReplacementSimulation", "FinalTerm")',
+                    type: 'POST',
+                    data: {
+                        referenceStringLength: length,
+                        maxPageNumber: maxPage,
+                        minFrameCount: minFrames,
+                        maxFrameCount: maxFrames
+                    },
+                    success: function(response) {
+                        console.log("Simulation started:", response);
+                        // UI will be updated by the periodic getOverallSimulationStatus call
+                    },
+                    error: function(error) {
+                        console.error("Simulation start failed:", error);
+                        $('#simulationMessage').text('模擬啟動失敗！');
+                        $('#startSimulationBtn').prop('disabled', false);
+                        $('#referenceStringLength, #maxPageNumber, #minFrameCount, #maxFrameCount').prop('disabled', false);
+                    }
+                });
+            });
+
+            // Load Trace Button Click Handler
+            $('#loadTraceBtn').click(function() {
+                const algorithmName = $('#selectAlgorithm').val();
+                const frameCount = parseInt($('#selectFrameCount').val());
+                loadDetailedTrace(algorithmName, frameCount);
+            });
+
+            // === Playback Controls (Optional: Add buttons for Pause/Resume/Next Step) ===
+            // For example, you could add buttons next to #loadTraceBtn
+            // <button id="playbackPauseBtn" class="btn btn-secondary" disabled>暫停</button>
+            // <button id="playbackNextBtn" class="btn btn-secondary" disabled>下一步</button>
+            // And then add their click handlers:
+            // $('#playbackPauseBtn').click(function() {
+            //     if (isPlaybackPaused) {
+            //         isPlaybackPaused = false;
+            //         playbackInterval = setInterval(playNextTraceStep, 500);
+            //         $(this).text('暫停');
+            //     } else {
+            //         isPlaybackPaused = true;
+            //         clearInterval(playbackInterval);
+            //         $(this).text('播放');
+            //     }
+            // });
+            // $('#playbackNextBtn').click(function() {
+            //     if (isPlaybackPaused) { // Only allow manual step if paused
+            //         playNextTraceStep();
+            //     }
+            // });
+        });
+    </script>
+}
+<style>
+    /* Styles for Page Replacement Algorithm */
+.simulation-controls .form-group {
+    margin-bottom: 10px;
+}
+.simulation-controls label {
+    font-weight: bold;
+}
+#algorithmOutputDisplay {
+    margin-top: 20px;
+    padding: 20px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    background-color: #fcfcfc;
+}
+#algorithmOutputDisplay h2, #algorithmOutputDisplay h3 {
+    margin-top: 20px;
+    margin-bottom: 15px;
+    color: #333;
+}
+#pageReferenceStringDisplay {
+    background-color: #e9ecef;
+    border-radius: 5px;
+    font-weight: bold;
+    color: #495057;
+}
+.table-bordered th, .table-bordered td {
+    text-align: center;
+    vertical-align: middle;
+}
+#detailedLogDisplay {
+    background-color: #f8f9fa;
+    border-radius: 5px;
+}
+</style>

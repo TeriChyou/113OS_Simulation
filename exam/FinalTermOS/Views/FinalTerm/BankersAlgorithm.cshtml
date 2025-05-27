@@ -1,5 +1,178 @@
+@* Views/FinalTerm/BankersAlgorithm.cshtml *@
 @{
-    ViewData["Title"] = "BankersAlgorithm";
+    ViewData["Title"] = "銀行家演算法 (Banker's Algorithm)";
 }
-<h2>BankersAlgorithm</h2>
-<p>這裡是第三題的模擬畫面。</p>
+
+<h1>@ViewData["Title"]</h1>
+
+<div class="simulation-controls">
+    <p id="simulationMessage">點擊 "執行演算法" 來查看結果。</p>
+    <button id="executeAlgorithmBtn" class="btn btn-primary">執行演算法</button>
+</div>
+
+<hr>
+
+<div id="algorithmOutputDisplay">
+    <h2>結果顯示</h2>
+    <div id="initialState">
+        <h3>初始系統狀態</h3>
+        <p><strong>Available:</strong> <span id="availableResources"></span></p>
+        <h4>進程數據 (Max, Allocation, Need)</h4>
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>進程</th>
+                    <th>Max (A,B,C,D)</th>
+                    <th>Allocation (A,B,C,D)</th>
+                    <th>Need (A,B,C,D)</th>
+                </tr>
+            </thead>
+            <tbody id="processesTableBody">
+                @* Process data will be dynamically loaded here *@
+            </tbody>
+        </table>
+    </div>
+
+    <div id="safeSequencesResult">
+        <h3>安全序列</h3>
+        <ul id="safeSequencesList">
+            @* Safe sequences will be displayed here *@
+        </ul>
+    </div>
+
+    <div id="requestsResult">
+        <h3>資源請求判斷</h3>
+        <p><strong>P1 請求 (1,1,0,0):</strong> <span id="requestP1Result"></span></p>
+        <p><strong>P4 請求 (0,0,2,0):</strong> <span id="requestP4Result"></span></p>
+    </div>
+
+    <h3>演算法執行日誌</h3>
+    <div id="algorithmLog" style="height: 300px; overflow-y: scroll; border: 1px solid #ddd; padding: 10px; background-color: #f0f0f0; font-family: monospace; font-size: 12px;">
+        @* Algorithm execution logs will appear here *@
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            // Function to fetch and display the initial status
+            function getInitialStatus() {
+                $.ajax({
+                    url: '@Url.Action("GetBankersAlgorithmStatus", "FinalTerm")',
+                    type: 'GET',
+                    success: function(status) {
+                        console.log("Initial status loaded:", status);
+                        updateUI(status); // Use the same update function
+                    },
+                    error: function(error) {
+                        console.error("Failed to load initial status:", error);
+                        $('#simulationMessage').text('載入初始狀態失敗！');
+                    }
+                });
+            }
+
+            // Function to update the UI with algorithm results
+            function updateUI(status) {
+                $('#availableResources').text(status.available);
+
+                const processesTableBody = $('#processesTableBody');
+                processesTableBody.empty();
+                if (status.processes && Array.isArray(status.processes)) {
+                    status.processes.forEach(p => {
+                        processesTableBody.append(`
+                            <tr>
+                                <td>P${p.id}</td>
+                                <td>${p.max}</td>
+                                <td>${p.allocation}</td>
+                                <td>${p.need}</td>
+                            </tr>
+                        `);
+                    });
+                }
+
+                // Display safe sequences
+                const safeSequencesList = $('#safeSequencesList');
+                safeSequencesList.empty();
+                if (status.safeSequences && Array.isArray(status.safeSequences) && status.safeSequences.length > 0) {
+                    status.safeSequences.forEach(seq => {
+                        safeSequencesList.append(`<li>${seq}</li>`);
+                    });
+                } else if (status.safeSequences && status.safeSequences.length === 0 && status.message === "銀行家演算法執行完成。請查看結果。") { // Check if executed but no sequence found
+                    safeSequencesList.append(`<li>未找到安全序列。</li>`);
+                }
+                else {
+                    safeSequencesList.append(`<li>點擊 "執行演算法" 後顯示。</li>`);
+                }
+
+
+                // Display request results
+                $('#requestP1Result').text(status.requestP1Result || '點擊 "執行演算法" 後顯示。');
+                $('#requestP4Result').text(status.requestP4Result || '點擊 "執行演算法" 後顯示。');
+
+                // Display log messages
+                const algorithmLog = $('#algorithmLog');
+                algorithmLog.empty();
+                if (status.logMessages && Array.isArray(status.logMessages)) {
+                    status.logMessages.forEach(msg => {
+                        algorithmLog.append(`<div>${msg}</div>`);
+                    });
+                    algorithmLog.scrollTop(algorithmLog[0].scrollHeight); // Auto-scroll
+                }
+
+                $('#simulationMessage').text(status.message);
+            }
+
+            // Click handler for Execute Algorithm button
+            $('#executeAlgorithmBtn').click(function() {
+                $('#executeAlgorithmBtn').prop('disabled', true); // Disable button during execution
+                $('#simulationMessage').text('正在執行演算法...');
+                $('#algorithmLog').empty(); // Clear previous logs on new execution
+
+                $.ajax({
+                    url: '@Url.Action("ExecuteBankersAlgorithm", "FinalTerm")',
+                    type: 'POST',
+                    success: function(response) {
+                        console.log("Algorithm execution complete:", response);
+                        updateUI(response); // Update UI with the results
+                        $('#executeAlgorithmBtn').prop('disabled', false); // Re-enable button
+                    },
+                    error: function(error) {
+                        console.error("Algorithm execution failed:", error);
+                        $('#simulationMessage').text('演算法執行失敗！');
+                        $('#executeAlgorithmBtn').prop('disabled', false); // Re-enable button on error
+                    }
+                });
+            });
+
+            // Load initial status when the page loads
+            getInitialStatus();
+        });
+    </script>
+}
+<style>
+    /* Styles for Banker's Algorithm */
+#algorithmOutputDisplay {
+    margin-top: 20px;
+    padding: 20px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    background-color: #fcfcfc;
+}
+#initialState h3, #safeSequencesResult h3, #requestsResult h3, #algorithmLog h3 {
+    margin-top: 20px;
+    margin-bottom: 15px;
+    color: #333;
+}
+.table-bordered th, .table-bordered td {
+    text-align: center;
+    vertical-align: middle;
+}
+#safeSequencesList {
+    list-style-type: decimal;
+    margin-left: 20px;
+    padding-left: 0;
+}
+#safeSequencesList li {
+    margin-bottom: 5px;
+}
+</style>

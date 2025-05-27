@@ -7,15 +7,21 @@ public class FinalTermController : Controller
     // 宣告一個 Service 的 private 變數
     private readonly SleepingTASimulationService _sleepingTAService;
     private readonly DiningPhilosophersSimulationService _diningPhilosophersService;
+    private readonly BankersAlgorithmService _bankersAlgorithmService;
+    private readonly VirtualMemorySimulationService _virtualMemoryService;
 
     // 建構子，透過依賴注入初始化 Service
     public FinalTermController(
         SleepingTASimulationService sleepingTAService,
-        DiningPhilosophersSimulationService diningPhilosophersService
+        DiningPhilosophersSimulationService diningPhilosophersService,
+        BankersAlgorithmService bankersAlgorithmService,
+        VirtualMemorySimulationService virtualMemoryService
     )
     {
         _sleepingTAService = sleepingTAService;
         _diningPhilosophersService = diningPhilosophersService;
+        _bankersAlgorithmService = bankersAlgorithmService;
+        _virtualMemoryService = virtualMemoryService;
     }
 
     // 顯示 Sleeping TA 頁面的 Action
@@ -149,11 +155,11 @@ public class FinalTermController : Controller
         }
         else if (!_diningPhilosophersService.IsSimulationRunning)
         {
-             return Json(new { success = false, message = "模擬未在運行中。" });
+            return Json(new { success = false, message = "模擬未在運行中。" });
         }
         else
         {
-             return Json(new { success = false, message = "模擬已暫停。" });
+            return Json(new { success = false, message = "模擬已暫停。" });
         }
     }
 
@@ -167,12 +173,80 @@ public class FinalTermController : Controller
         }
         else if (!_diningPhilosophersService.IsSimulationRunning)
         {
-             return Json(new { success = false, message = "模擬未在運行中。" });
+            return Json(new { success = false, message = "模擬未在運行中。" });
         }
         else
         {
-             return Json(new { success = false, message = "模擬未暫停。" });
+            return Json(new { success = false, message = "模擬未暫停。" });
         }
     }
+    // Banker's Algorithm
+    // Action to display Banker's Algorithm page
+    public IActionResult BankersAlgorithm()
+    {
+        ViewData["Title"] = "銀行家演算法 (Banker's Algorithm)";
+        return View();
+    }
 
+    // Action to execute Banker's Algorithm (equivalent to 'Start' for this problem)
+    [HttpPost]
+    public IActionResult ExecuteBankersAlgorithm()
+    {
+        // Banker's Algorithm is a static calculation, so we just execute and return results.
+        // No need for a running flag, but the service provides it for consistency if needed.
+        BankersAlgorithmStatus result = _bankersAlgorithmService.ExecuteAlgorithm();
+        return Json(result);
+    }
+
+    // Action to get Banker's Algorithm status (useful for initial display or re-fetching)
+    [HttpGet]
+    public IActionResult GetBankersAlgorithmStatus()
+    {
+        BankersAlgorithmStatus status = _bankersAlgorithmService.GetCurrentStatus();
+        return Json(status);
+    }
+    // Page Replacement Problem
+    public IActionResult PageReplacement()
+    {
+        ViewData["Title"] = "虛擬記憶體頁面置換演算法 (Page Replacement)";
+        return View();
+    }
+
+    // Action to start Virtual Memory simulation (triggers all calculations)
+    [HttpPost]
+    public IActionResult StartPageReplacementSimulation(int referenceStringLength, int maxPageNumber, int minFrameCount, int maxFrameCount)
+    {
+        if (_virtualMemoryService.IsSimulationRunning) // Check if a calculation is already in progress
+        {
+            return Json(new { success = false, message = "模擬正在運行中。" });
+        }
+
+        // You might want to add validation for input parameters here
+        if (referenceStringLength <= 0 || maxPageNumber < 0 || minFrameCount <= 0 || maxFrameCount < minFrameCount)
+        {
+            return Json(new { success = false, message = "請輸入有效的參數。" });
+        }
+
+
+        // Execute the simulation (this will run all algorithms and store results)
+        _virtualMemoryService.StartSimulation(referenceStringLength, maxPageNumber, minFrameCount, maxFrameCount);
+
+        return Json(new { success = true, message = "頁面置換演算法計算已啟動。" });
+    }
+
+    // Action to get the overall status and results
+    [HttpGet]
+    public IActionResult GetPageReplacementStatus()
+    {
+        VirtualMemorySimulationStatus status = _virtualMemoryService.GetCurrentStatus();
+        return Json(status);
+    }
+
+    // Action to get detailed trace for a specific algorithm and frame count
+    [HttpGet]
+    public IActionResult GetPageReplacementDetailedTrace(string algorithmName, int frameCount)
+    {
+        List<string> trace = _virtualMemoryService.GetDetailedTrace(algorithmName, frameCount);
+        return Json(new { trace = trace, algorithmName = algorithmName, frameCount = frameCount });
+    }
 }
