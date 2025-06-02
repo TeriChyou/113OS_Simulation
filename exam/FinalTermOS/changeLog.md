@@ -14,3 +14,7 @@
 
 - Currently all questions are solved, but need further improvement and UI optimization.
 - Need to make slides to explain why and how the questions website are done.
+
+## 2025 06 02
+
+- Remove unecessary pages.
