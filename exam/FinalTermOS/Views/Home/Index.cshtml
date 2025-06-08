@@ -1,8 +1,111 @@
 ﻿@{
-    ViewData["Title"] = "Home Page";
+    ViewData["Title"] = "作業系統期末專案"; // Change the page title
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+<style>
+    /* Custom CSS for the homepage cards */
+    .project-description {
+        margin-top: 20px;
+        margin-bottom: 40px;
+        font-size: 1.2em;
+        color: #555;
+    }
+
+    .problem-cards-container {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center; /* Center cards horizontally */
+        gap: 20px; /* Space between cards */
+    }
+
+    .problem-card {
+        width: 100%; /* Default to full width on small screens */
+        max-width: 320px; /* Max width for each card */
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        text-decoration: none; /* Remove underline from link */
+        color: inherit; /* Inherit text color */
+        padding: 20px;
+        background-color: #fff;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between; /* Push button to bottom */
+    }
+
+    .problem-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+    }
+
+    .problem-card h3 {
+        color: #007bff; /* Bootstrap primary color */
+        margin-bottom: 10px;
+    }
+
+    .problem-card p {
+        font-size: 0.95em;
+        color: #666;
+        flex-grow: 1; /* Allow description to take available space */
+        margin-bottom: 15px;
+    }
+
+    .problem-card .btn {
+        width: 100%; /* Make button full width within card */
+    }
+</style>
+
+<div class="text-center py-5">
+    <h1 class="display-4">Operating System Final Term Presentation</h1>
+    <p class="lead project-description">
+        利用互動式模擬，協助理解題目所需的核心概念與演算法。
+        包含執行緒同步、死鎖避免、以及虛擬記憶體管理等四個經典問題。
+    </p>
+</div>
+
+<div class="problem-cards-container">
+    @* Card for Sleeping TA Problem *@
+    <a href="@Url.Action("SleepingTA", "FinalTerm")" class="problem-card">
+        <div>
+            <h3>問題一：睡覺的助教</h3>
+            <p>
+                模擬助教與學生的互動，應用互斥鎖、號誌和條件變數實現執行緒同步與協調。
+            </p>
+        </div>
+        <button class="btn btn-primary">進入模擬</button>
+    </a>
+
+    @* Card for Dining Philosophers Problem *@
+    <a href="@Url.Action("DiningPhilosophers", "FinalTerm")" class="problem-card">
+        <div>
+            <h3>問題二：哲學家進餐</h3>
+            <p>
+                解決經典的死鎖問題，展示如何透過資源分配策略避免多個哲學家之間的衝突。
+            </p>
+        </div>
+        <button class="btn btn-primary">進入模擬</button>
+    </a>
+
+    @* Card for Banker's Algorithm Problem *@
+    <a href="@Url.Action("BankersAlgorithm", "FinalTerm")" class="problem-card"> 
+        <div>
+            <h3>問題三：銀行家演算法</h3>
+            <p>
+                實作死鎖避免演算法，判斷系統的安全狀態，並評估資源請求是否可安全授予。
+            </p>
+        </div>
+        <button class="btn btn-primary">進入模擬</button>
+    </a>
+
+    @* Card for Page Replacement Problem *@
+    <a href="@Url.Action("PageReplacement", "FinalTerm")" class="problem-card">
+        <div>
+            <h3>問題四：虛擬記憶體頁面置換</h3>
+            <p>
+                比較 FIFO、LRU 和 Optimal 三種頁面置換演算法的性能，評估其分頁錯誤率。
+            </p>
+        </div>
+        <button class="btn btn-primary">進入模擬</button>
+    </a>
 </div>
